@@ -5,14 +5,13 @@ FROM node:lts AS build-js
 RUN npm install -g gulp gulp-cli
 WORKDIR /build
 COPY . .
-# If your project has package-lock.json, prefer npm ci for reproducible builds:
-# RUN npm ci --include=dev
+# If you have a lockfile, prefer: RUN npm ci --include=dev
 RUN npm install --only=dev
 RUN gulp
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Build Golang binary (use a modern Go + modules)
+# Build Golang binary (modern Go + modules)
 FROM golang:1.22 AS build-golang
 
 ENV GO111MODULE=on \
@@ -20,13 +19,12 @@ ENV GO111MODULE=on \
 
 WORKDIR /app
 
-# Prime module cache first for better Docker layer caching
+# Cache deps first
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Now bring in the rest of the source and build
+# Bring in the rest and build
 COPY . .
-# Build the main module binary named 'gophish'
 RUN go build -v -o gophish .
 
 
@@ -43,8 +41,8 @@ RUN apt-get update && \
 
 WORKDIR /opt/gophish
 
-# App binary + app files
-COPY --from=build-golang /app/ ./      # brings gophish binary + repo files
+# App binary + app files (no inline comments on COPY lines)
+COPY --from=build-golang /app/ ./
 COPY --from=build-js /build/static/js/dist/ ./static/js/dist/
 COPY --from=build-js /build/static/css/dist/ ./static/css/dist/
 
